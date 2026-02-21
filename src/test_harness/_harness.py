@@ -43,14 +43,10 @@ def run(argv: list[str] | None = None) -> int:
     results_file = Path(results_path)
 
     try:
-        # Build subprocess environment.
-        env = os.environ.copy()
-        env["TEST_HARNESS_RESULTS_FILE"] = str(results_file)
-
         # Run pytest in subprocess via our _runner module.
+        # First arg to _runner is the results file path, rest are pytest args.
         proc = subprocess.run(
-            [sys.executable, "-m", "test_harness._runner", *pytest_args],
-            env=env,
+            [sys.executable, "-m", "test_harness._runner", str(results_file), *pytest_args],
         )
         exit_code = proc.returncode
 

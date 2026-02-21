@@ -7,12 +7,16 @@ import pytest
 
 @pytest.fixture()
 def harness_pytester(pytester: pytest.Pytester) -> pytest.Pytester:
-    """A pytester with the env var set so our plugin activates."""
+    """A pytester that registers the plugin via conftest, pointing at a local results file."""
     results_file = pytester.path / "results.jsonl"
     pytester.makeconftest(
         f"""
-import os
-os.environ["TEST_HARNESS_RESULTS_FILE"] = {str(results_file)!r}
+from pathlib import Path
+from test_harness._plugin import TestResultPlugin
+
+def pytest_configure(config):
+    plugin = TestResultPlugin(Path({str(results_file)!r}))
+    config.pluginmanager.register(plugin, "test_harness_plugin")
 """
     )
     return pytester

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import IO
@@ -8,8 +7,6 @@ from typing import IO
 import pytest
 
 from test_harness._schema import Outcome, TestResult
-
-ENV_VAR = "TEST_HARNESS_RESULTS_FILE"
 
 # Map pytest outcome strings to our Outcome enum.
 _OUTCOME_MAP: dict[str, Outcome] = {
@@ -81,11 +78,3 @@ class TestResultPlugin:
             longrepr=longrepr,
         )
         self._write(result)
-
-
-def pytest_configure(config: pytest.Config) -> None:
-    """Register the plugin if the env var is set."""
-    results_file = os.environ.get(ENV_VAR)
-    if results_file:
-        plugin = TestResultPlugin(Path(results_file))
-        config.pluginmanager.register(plugin, "test_harness_plugin")

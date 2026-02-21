@@ -12,9 +12,6 @@ dependencies = [
     "rich>=13.0",
 ]
 
-[project.entry-points.pytest11]
-test_harness = "test_harness._plugin"
-
 [project.scripts]
 test-harness = "test_harness:main"
 
