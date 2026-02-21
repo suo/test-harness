@@ -1,64 +1,43 @@
 from __future__ import annotations
 
-import json
-
 import pytest
 from syrupy.assertion import SnapshotAssertion
 
-from test_harness._schema import Outcome, TestResult, read_results
+from test_harness._schema import (
+    CRASH_REPR,
+    Outcome,
+    TestFinished,
+    TestStarted,
+    read_events,
+    resolve_events,
+)
 
 from conftest import FIXED_START, FIXED_STOP
 
 
-class TestTestResult:
-    def test_to_json_line_snapshot(
-        self, sample_results: list[TestResult], snapshot: SnapshotAssertion
+class TestTestFinished:
+    def test_to_json_snapshot(
+        self, sample_results: list[TestFinished], snapshot: SnapshotAssertion
     ) -> None:
         for result in sample_results:
-            assert result.to_json_line() == snapshot
+            assert result.model_dump_json() == snapshot
 
-    def test_roundtrip(self, sample_results: list[TestResult]) -> None:
+    def test_roundtrip(self, sample_results: list[TestFinished]) -> None:
         for result in sample_results:
-            line = result.to_json_line()
-            restored = TestResult.from_json_line(line)
+            line = result.model_dump_json()
+            restored = TestFinished.model_validate_json(line)
             assert restored == result
-
-    def test_to_dict_keys(self) -> None:
-        result = TestResult(
-            nodeid="t::x",
-            outcome=Outcome.PASSED,
-            when="call",
-            duration=0.0,
-            start=FIXED_START,
-            stop=FIXED_STOP,
-        )
-        d = result.to_dict()
-        assert set(d.keys()) == {
-            "nodeid",
-            "outcome",
-            "when",
-            "duration",
-            "start",
-            "stop",
-            "location",
-            "longrepr",
-            "sections",
-            "wasxfail",
-        }
-        assert d["longrepr"] is None
-        assert d["location"] is None
-        assert d["sections"] is None
-        assert d["wasxfail"] is None
 
     def test_outcome_values(self) -> None:
         assert Outcome.PASSED.value == "passed"
         assert Outcome.XPASSED.value == "xpassed"
 
 
-class TestReadResults:
+class TestReadEvents:
     def test_reads_valid_jsonl(self, tmp_path) -> None:
         f = tmp_path / "results.jsonl"
-        r = TestResult(
+        started = TestStarted(nodeid="t::a", start=FIXED_START)
+        finished = TestFinished(
             nodeid="t::a",
             outcome=Outcome.PASSED,
             when="call",
@@ -66,14 +45,15 @@ class TestReadResults:
             start=FIXED_START,
             stop=FIXED_STOP,
         )
-        f.write_text(r.to_json_line() + "\n")
-        results = read_results(f)
-        assert len(results) == 1
-        assert results[0] == r
+        f.write_text(started.model_dump_json() + "\n" + finished.model_dump_json() + "\n")
+        events = read_events(f)
+        assert len(events) == 2
+        assert isinstance(events[0], TestStarted)
+        assert isinstance(events[1], TestFinished)
 
     def test_skips_malformed_lines(self, tmp_path) -> None:
         f = tmp_path / "results.jsonl"
-        r = TestResult(
+        finished = TestFinished(
             nodeid="t::a",
             outcome=Outcome.PASSED,
             when="call",
@@ -81,17 +61,62 @@ class TestReadResults:
             start=FIXED_START,
             stop=FIXED_STOP,
         )
-        content = r.to_json_line() + "\n" + "NOT JSON\n" + '{"truncated": true}\n'
+        content = finished.model_dump_json() + "\n" + "NOT JSON\n" + '{"truncated": true}\n'
         f.write_text(content)
-        results = read_results(f)
-        assert len(results) == 1
+        events = read_events(f)
+        assert len(events) == 1
 
     def test_missing_file(self, tmp_path) -> None:
-        results = read_results(tmp_path / "nonexistent.jsonl")
-        assert results == []
+        events = read_events(tmp_path / "nonexistent.jsonl")
+        assert events == []
 
     def test_empty_file(self, tmp_path) -> None:
         f = tmp_path / "results.jsonl"
         f.write_text("")
-        results = read_results(f)
-        assert results == []
+        events = read_events(f)
+        assert events == []
+
+
+class TestResolveEvents:
+    def test_unmatched_start_becomes_crash(self, tmp_path) -> None:
+        started = TestStarted(nodeid="t::crashed", start=FIXED_START, location=("test.py", 1, "t::crashed"))
+        resolved = resolve_events([started])
+        assert len(resolved) == 1
+        assert resolved[0].outcome == Outcome.FAILED
+        assert resolved[0].longrepr == CRASH_REPR
+        assert resolved[0].location == ("test.py", 1, "t::crashed")
+
+    def test_matched_start_is_dropped(self) -> None:
+        started = TestStarted(nodeid="t::ok", start=FIXED_START)
+        finished = TestFinished(
+            nodeid="t::ok",
+            outcome=Outcome.PASSED,
+            when="call",
+            duration=0.001,
+            start=FIXED_START,
+            stop=FIXED_STOP,
+        )
+        resolved = resolve_events([started, finished])
+        assert len(resolved) == 1
+        assert resolved[0].outcome == Outcome.PASSED
+
+    def test_mixed_crash_and_complete(self) -> None:
+        """One test completes, another crashes — only the crashed start becomes a failure."""
+        started_a = TestStarted(nodeid="t::a", start=FIXED_START)
+        finished_a = TestFinished(
+            nodeid="t::a",
+            outcome=Outcome.PASSED,
+            when="call",
+            duration=0.001,
+            start=FIXED_START,
+            stop=FIXED_STOP,
+        )
+        started_b = TestStarted(nodeid="t::b", start=FIXED_START)
+
+        resolved = resolve_events([started_a, finished_a, started_b])
+        assert len(resolved) == 2
+        assert resolved[0].nodeid == "t::a"
+        assert resolved[0].outcome == Outcome.PASSED
+        assert resolved[1].nodeid == "t::b"
+        assert resolved[1].outcome == Outcome.FAILED
+        assert resolved[1].longrepr == CRASH_REPR

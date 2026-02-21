@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import sys
-
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from test_harness._schema import Outcome, TestResult
+from test_harness._schema import Outcome, TestFinished
 
 _OUTCOME_STYLES: dict[Outcome, str] = {
     Outcome.PASSED: "green",
@@ -19,7 +17,7 @@ _OUTCOME_STYLES: dict[Outcome, str] = {
 }
 
 
-def _make_summary_table(results: list[TestResult]) -> Table:
+def _make_summary_table(results: list[TestFinished]) -> Table:
     counts: dict[Outcome, int] = {}
     total_duration = 0.0
     for r in results:
@@ -46,7 +44,7 @@ def _make_summary_table(results: list[TestResult]) -> Table:
     return table
 
 
-def _make_failure_panels(results: list[TestResult]) -> list[Panel]:
+def _make_failure_panels(results: list[TestFinished]) -> list[Panel]:
     panels: list[Panel] = []
     failed = [
         r
@@ -65,7 +63,7 @@ def _make_failure_panels(results: list[TestResult]) -> list[Panel]:
     return panels
 
 
-def print_results(results: list[TestResult]) -> None:
+def print_results(results: list[TestFinished]) -> None:
     """Print a rich-formatted summary of test results to stderr."""
     console = Console(stderr=True)
 

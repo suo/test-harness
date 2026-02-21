@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Self
+from typing import Annotated, Literal, Union
+
+from pydantic import BaseModel, Field, TypeAdapter
 
 logger = logging.getLogger(__name__)
+
+CRASH_REPR = "Test crashed (no result received)"
 
 
 class Outcome(str, Enum):
@@ -19,8 +21,19 @@ class Outcome(str, Enum):
     XPASSED = "xpassed"
 
 
-@dataclass(frozen=True, slots=True)
-class TestResult:
+class TestStarted(BaseModel):
+    __test__ = False  # prevent pytest collection
+
+    type: Literal["test_started"] = "test_started"
+    nodeid: str
+    start: float
+    location: tuple[str, int | None, str] | None = None
+
+
+class TestFinished(BaseModel):
+    __test__ = False  # prevent pytest collection
+
+    type: Literal["test_finished"] = "test_finished"
     nodeid: str
     outcome: Outcome
     when: str
@@ -32,66 +45,58 @@ class TestResult:
     sections: list[tuple[str, str]] | None = None
     wasxfail: str | None = None
 
-    def to_dict(self) -> dict:
-        return {
-            "nodeid": self.nodeid,
-            "outcome": self.outcome.value,
-            "when": self.when,
-            "duration": self.duration,
-            "start": self.start,
-            "stop": self.stop,
-            "location": list(self.location) if self.location is not None else None,
-            "longrepr": self.longrepr,
-            "sections": [list(s) for s in self.sections]
-            if self.sections is not None
-            else None,
-            "wasxfail": self.wasxfail,
-        }
 
-    def to_json_line(self) -> str:
-        return json.dumps(self.to_dict(), separators=(",", ":"))
-
-    @classmethod
-    def from_dict(cls, data: dict) -> Self:
-        location = data.get("location")
-        if location is not None:
-            location = (location[0], location[1], location[2])
-        sections = data.get("sections")
-        if sections is not None:
-            sections = [(s[0], s[1]) for s in sections]
-        return cls(
-            nodeid=data["nodeid"],
-            outcome=Outcome(data["outcome"]),
-            when=data["when"],
-            duration=data["duration"],
-            start=data["start"],
-            stop=data["stop"],
-            location=location,
-            longrepr=data.get("longrepr"),
-            sections=sections,
-            wasxfail=data.get("wasxfail"),
-        )
-
-    @classmethod
-    def from_json_line(cls, line: str) -> Self:
-        return cls.from_dict(json.loads(line))
+TestEvent = Annotated[Union[TestStarted, TestFinished], Field(discriminator="type")]
+_event_adapter: TypeAdapter[TestEvent] = TypeAdapter(TestEvent)
 
 
-def read_results(path: Path) -> list[TestResult]:
-    """Read JSONL results file, skipping malformed/truncated lines."""
-    results: list[TestResult] = []
+def read_events(path: Path) -> list[TestEvent]:
+    """Read JSONL events file, skipping malformed/truncated lines."""
+    events: list[TestEvent] = []
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
-        return results
+        return events
 
     for lineno, line in enumerate(text.splitlines(), start=1):
         line = line.strip()
         if not line:
             continue
         try:
-            results.append(TestResult.from_json_line(line))
-        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            events.append(_event_adapter.validate_json(line))
+        except Exception as exc:
             logger.warning("Skipping malformed line %d: %s", lineno, exc)
 
-    return results
+    return events
+
+
+def resolve_events(events: list[TestEvent]) -> list[TestFinished]:
+    """Match TestStarted/TestFinished pairs; synthesize failures for crashes.
+
+    Any TestStarted without a corresponding TestFinished is converted into a
+    synthetic TestFinished with outcome=FAILED, indicating a crash.
+    """
+    finished_nodeids: set[str] = set()
+    for ev in events:
+        if isinstance(ev, TestFinished):
+            finished_nodeids.add(ev.nodeid)
+
+    resolved: list[TestFinished] = []
+    for ev in events:
+        if isinstance(ev, TestFinished):
+            resolved.append(ev)
+        elif isinstance(ev, TestStarted) and ev.nodeid not in finished_nodeids:
+            resolved.append(
+                TestFinished(
+                    nodeid=ev.nodeid,
+                    outcome=Outcome.FAILED,
+                    when="call",
+                    duration=0.0,
+                    start=ev.start,
+                    stop=ev.start,
+                    location=ev.location,
+                    longrepr=CRASH_REPR,
+                )
+            )
+
+    return resolved

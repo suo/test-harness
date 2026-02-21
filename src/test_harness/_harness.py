@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 from test_harness._console import print_results
-from test_harness._schema import read_results
+from test_harness._schema import read_events, resolve_events
 from test_harness.backends import get_backend
 
 
@@ -50,15 +50,18 @@ def run(argv: list[str] | None = None) -> int:
         )
         exit_code = proc.returncode
 
-        # Read whatever results were written, even on crash.
-        results = read_results(results_file)
+        # Read whatever events were written, even on crash.
+        events = read_events(results_file)
+
+        # Resolve started/finished pairs for display.
+        resolved = resolve_events(events)
 
         # Display results.
-        print_results(results)
+        print_results(resolved)
 
-        # Upload via backend.
-        if results:
-            backend.upload(results)
+        # Upload raw events via backend.
+        if events:
+            backend.upload(events)
 
         return exit_code
     finally:

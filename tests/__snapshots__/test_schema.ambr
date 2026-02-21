@@ -1,10 +1,10 @@
 # serializer version: 1
-# name: TestTestResult.test_to_json_line_snapshot
-  '{"nodeid":"tests/test_a.py::test_ok","outcome":"passed","when":"call","duration":0.005,"start":1735689600.0,"stop":1735689600.005,"location":null,"longrepr":null,"sections":null,"wasxfail":null}'
+# name: TestTestFinished.test_to_json_snapshot
+  '{"type":"test_finished","nodeid":"tests/test_a.py::test_ok","outcome":"passed","when":"call","duration":0.005,"start":1735689600.0,"stop":1735689600.005,"location":null,"longrepr":null,"sections":null,"wasxfail":null}'
 # ---
-# name: TestTestResult.test_to_json_line_snapshot.1
-  '{"nodeid":"tests/test_a.py::test_fail","outcome":"failed","when":"call","duration":0.123,"start":1735689600.0,"stop":1735689600.123,"location":null,"longrepr":"assert 1 == 2","sections":null,"wasxfail":null}'
+# name: TestTestFinished.test_to_json_snapshot.1
+  '{"type":"test_finished","nodeid":"tests/test_a.py::test_fail","outcome":"failed","when":"call","duration":0.123,"start":1735689600.0,"stop":1735689600.123,"location":null,"longrepr":"assert 1 == 2","sections":null,"wasxfail":null}'
 # ---
-# name: TestTestResult.test_to_json_line_snapshot.2
-  '{"nodeid":"tests/test_a.py::test_skip","outcome":"skipped","when":"setup","duration":0.0,"start":1735689600.0,"stop":1735689600.0,"location":null,"longrepr":null,"sections":null,"wasxfail":null}'
+# name: TestTestFinished.test_to_json_snapshot.2
+  '{"type":"test_finished","nodeid":"tests/test_a.py::test_skip","outcome":"skipped","when":"setup","duration":0.0,"start":1735689600.0,"stop":1735689600.0,"location":null,"longrepr":null,"sections":null,"wasxfail":null}'
 # ---

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from test_harness._schema import TestResult
+from test_harness._schema import TestEvent, TestFinished
 from test_harness.backends import Backend, StubBackend, get_backend
 
 
@@ -19,13 +19,13 @@ class TestRegistry:
 
 class TestStubBackend:
     def test_upload_does_not_raise(
-        self, sample_results: list[TestResult], capsys: pytest.CaptureFixture[str]
+        self, sample_results: list[TestFinished], capsys: pytest.CaptureFixture[str]
     ) -> None:
         backend = StubBackend()
         backend.upload(sample_results)
         # StubBackend prints to stderr via rich.
         captured = capsys.readouterr()
-        assert "3 result(s)" in captured.err
+        assert "3 event(s)" in captured.err
 
     def test_is_backend_subclass(self) -> None:
         assert issubclass(StubBackend, Backend)

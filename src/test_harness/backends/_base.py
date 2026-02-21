@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from test_harness._schema import TestResult
+from test_harness._schema import TestEvent
 
 
 class Backend(ABC):
     """Abstract base class for test result upload backends."""
 
     @abstractmethod
-    def upload(self, results: list[TestResult]) -> None:
-        """Upload test results to the backend."""
+    def upload(self, events: list[TestEvent]) -> None:
+        """Upload test events to the backend."""
 
     @abstractmethod
     def name(self) -> str:

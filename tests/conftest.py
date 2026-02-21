@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from test_harness._schema import Outcome, TestResult
+from test_harness._schema import Outcome, TestFinished
 
 pytest_plugins = ["pytester"]
 
@@ -12,9 +12,9 @@ FIXED_STOP = 1735689600.005  # 5ms later
 
 
 @pytest.fixture()
-def sample_results() -> list[TestResult]:
+def sample_results() -> list[TestFinished]:
     return [
-        TestResult(
+        TestFinished(
             nodeid="tests/test_a.py::test_ok",
             outcome=Outcome.PASSED,
             when="call",
@@ -22,7 +22,7 @@ def sample_results() -> list[TestResult]:
             start=FIXED_START,
             stop=FIXED_STOP,
         ),
-        TestResult(
+        TestFinished(
             nodeid="tests/test_a.py::test_fail",
             outcome=Outcome.FAILED,
             when="call",
@@ -31,7 +31,7 @@ def sample_results() -> list[TestResult]:
             stop=FIXED_START + 0.123,
             longrepr="assert 1 == 2",
         ),
-        TestResult(
+        TestFinished(
             nodeid="tests/test_a.py::test_skip",
             outcome=Outcome.SKIPPED,
             when="setup",
