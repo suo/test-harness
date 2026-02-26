@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from bridle.backends._base import Backend
 from bridle.backends._buildkite import BuildkiteBackend
+from bridle.backends._mslci import MslciBackend
 from bridle.backends._stub import StubBackend
 
 _REGISTRY: dict[str, type[Backend]] = {
     "stub": StubBackend,
     "buildkite": BuildkiteBackend,
+    "mslci": MslciBackend,
 }
 
 
@@ -21,4 +23,4 @@ def get_backend(name: str) -> Backend:
     return cls()
 
 
-__all__ = ["Backend", "BuildkiteBackend", "StubBackend", "get_backend"]
+__all__ = ["Backend", "BuildkiteBackend", "MslciBackend", "StubBackend", "get_backend"]

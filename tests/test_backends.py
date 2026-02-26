@@ -8,13 +8,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from bridle._schema import Outcome, TestEvent, TestFinished, TestStarted
-from bridle.backends import Backend, BuildkiteBackend, StubBackend, get_backend
+from bridle.backends import (
+    Backend,
+    BuildkiteBackend,
+    MslciBackend,
+    StubBackend,
+    get_backend,
+)
 from bridle.backends._buildkite import (
     _convert_event,
-    _detect_run_env,
     _map_outcome,
     _parse_nodeid,
 )
+from bridle.backends._run_env import _detect_run_env
 
 # Deterministic timestamps reused from conftest.
 FIXED_START = 1735689600.0
@@ -31,6 +37,11 @@ class TestRegistry:
         backend = get_backend("buildkite")
         assert isinstance(backend, BuildkiteBackend)
         assert backend.name() == "buildkite"
+
+    def test_get_mslci_backend(self) -> None:
+        backend = get_backend("mslci")
+        assert isinstance(backend, MslciBackend)
+        assert backend.name() == "mslci"
 
     def test_unknown_backend_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown backend 'nope'"):
@@ -337,3 +348,239 @@ class TestBuildkiteUpload:
         ) as mock_post:
             backend.upload(events)
             assert mock_post.call_args[0][0] == "https://custom.example.com/upload"
+
+
+class TestMslciBackend:
+    def test_missing_url_warns(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.delenv("MSLCI_API_URL", raising=False)
+        backend = MslciBackend()
+        with caplog.at_level(logging.WARNING):
+            backend.upload([])
+        assert "MSLCI_API_URL not set" in caplog.text
+
+    def test_empty_events_no_upload(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        backend = MslciBackend()
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            backend.upload([])
+            mock_urlopen.assert_not_called()
+
+    def test_payload_structure(
+        self, monkeypatch: pytest.MonkeyPatch, sample_results: list[TestFinished]
+    ) -> None:
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        monkeypatch.setenv("BUILDKITE_BUILD_ID", "abc-123")
+        monkeypatch.setenv("BUILDKITE_BRANCH", "main")
+        monkeypatch.setenv("BUILDKITE_COMMIT", "deadbeef")
+        backend = MslciBackend()
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b""
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            backend.upload(sample_results)
+            mock_urlopen.assert_called_once()
+            req = mock_urlopen.call_args[0][0]
+            payload = json.loads(req.data.decode("utf-8"))
+
+        # Verify run_env has MSLCI schema fields
+        run_env = payload["run_env"]
+        assert run_env["key"] == "abc-123"
+        assert run_env["branch"] == "main"
+        assert run_env["commit_sha"] == "deadbeef"
+        assert run_env["ci"] == "buildkite"
+        assert "commit" not in run_env
+        assert "CI" not in run_env
+
+        # Verify events structure
+        events = payload["events"]
+        assert len(events) == 3
+        assert events[0]["nodeid"] == "tests/test_a.py::test_ok"
+        assert events[0]["outcome"] == "passed"
+        assert events[0]["duration"] == 0.005
+        assert events[0]["start"] == FIXED_START
+        assert events[0]["stop"] == FIXED_STOP
+        # type field must not be present
+        for ev in events:
+            assert "type" not in ev
+
+    def test_auth_header(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        monkeypatch.setenv("MSLCI_API_TOKEN", "secret-token")
+        backend = MslciBackend()
+
+        events: list[TestEvent] = [
+            TestFinished(
+                nodeid="tests/test_a.py::test_ok",
+                outcome=Outcome.PASSED,
+                when="call",
+                duration=0.0,
+                start=FIXED_START,
+                stop=FIXED_START,
+            ),
+        ]
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b""
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            backend.upload(events)
+            req = mock_urlopen.call_args[0][0]
+            assert req.get_header("Authorization") == 'Token token="secret-token"'
+
+    def test_no_auth_header(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        monkeypatch.delenv("MSLCI_API_TOKEN", raising=False)
+        backend = MslciBackend()
+
+        events: list[TestEvent] = [
+            TestFinished(
+                nodeid="tests/test_a.py::test_ok",
+                outcome=Outcome.PASSED,
+                when="call",
+                duration=0.0,
+                start=FIXED_START,
+                stop=FIXED_START,
+            ),
+        ]
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b""
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            backend.upload(events)
+            req = mock_urlopen.call_args[0][0]
+            assert not req.has_header("Authorization")
+
+    def test_http_error_resilience(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        backend = MslciBackend()
+
+        events: list[TestEvent] = [
+            TestFinished(
+                nodeid="tests/test_a.py::test_ok",
+                outcome=Outcome.PASSED,
+                when="call",
+                duration=0.0,
+                start=FIXED_START,
+                stop=FIXED_START,
+            ),
+        ]
+
+        def raise_http_error(*args: object, **kwargs: object) -> None:
+            raise urllib.error.HTTPError(
+                "http://example.com", 500, "Server Error", {}, None  # type: ignore[arg-type]
+            )
+
+        with (
+            patch("urllib.request.urlopen", side_effect=raise_http_error),
+            caplog.at_level(logging.WARNING),
+        ):
+            backend.upload(events)
+        assert "MSLCI upload failed" in caplog.text
+
+    def test_crash_events_resolved(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Unmatched TestStarted events are resolved as failed."""
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        backend = MslciBackend()
+
+        events: list[TestEvent] = [
+            TestStarted(
+                nodeid="tests/test_a.py::test_crash",
+                start=FIXED_START,
+            ),
+        ]
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b""
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            backend.upload(events)
+            mock_urlopen.assert_called_once()
+            req = mock_urlopen.call_args[0][0]
+            payload = json.loads(req.data.decode("utf-8"))
+            events_data = payload["events"]
+            assert len(events_data) == 1
+            assert events_data[0]["outcome"] == "failed"
+            assert events_data[0]["nodeid"] == "tests/test_a.py::test_crash"
+
+    def test_batching(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        backend = MslciBackend()
+        events: list[TestEvent] = [
+            TestFinished(
+                nodeid=f"tests/test_a.py::test_{i}",
+                outcome=Outcome.PASSED,
+                when="call",
+                duration=0.0,
+                start=FIXED_START,
+                stop=FIXED_START,
+            )
+            for i in range(12_000)
+        ]
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b""
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            backend.upload(events)
+            assert mock_urlopen.call_count == 3
+            # First two batches have 5000 items, last has 2000.
+            batch_sizes = [
+                len(json.loads(call.args[0].data.decode("utf-8"))["events"])
+                for call in mock_urlopen.call_args_list
+            ]
+            assert batch_sizes == [5000, 5000, 2000]
+
+    def test_run_env_commit_sha_mapping(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The 'commit' field from CI detection is mapped to 'commit_sha'."""
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        monkeypatch.delenv("BUILDKITE_BUILD_ID", raising=False)
+        monkeypatch.setenv("GITHUB_ACTION", "run")
+        monkeypatch.setenv("GITHUB_RUN_ID", "999")
+        monkeypatch.setenv("GITHUB_SHA", "deadbeef")
+        monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
+        monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+        monkeypatch.setenv("GITHUB_REPOSITORY", "org/repo")
+        monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
+        backend = MslciBackend()
+
+        events: list[TestEvent] = [
+            TestFinished(
+                nodeid="tests/test_a.py::test_ok",
+                outcome=Outcome.PASSED,
+                when="call",
+                duration=0.0,
+                start=FIXED_START,
+                stop=FIXED_START,
+            ),
+        ]
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b""
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            backend.upload(events)
+            req = mock_urlopen.call_args[0][0]
+            payload = json.loads(req.data.decode("utf-8"))
+            run_env = payload["run_env"]
+            assert run_env["commit_sha"] == "deadbeef"
+            assert "commit" not in run_env
