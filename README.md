@@ -5,7 +5,7 @@ A harness for running pytest. It handles the collection and upload of test resul
 ## Features
 
 - **Crash resilience** — pytest runs in a subprocess; events are flushed to disk after every test. A `TestStarted` event is written before each test runs, followed by a `TestFinished` event on completion. If the subprocess segfaults or OOMs mid-test, `resolve_events()` detects the unmatched `TestStarted` and synthesizes a failed `TestFinished`.
-- **Pluggable backends** — can register one or more backends to upload test results to.
+- **Pluggable backends** — pass one or more comma-separated backend names via `--backend` to upload test results to multiple destinations simultaneously (e.g. `--backend buildkite,mslci`).
 - **Rich console output** — summary table with outcome counts and duration, plus detailed failure panels, all printed to stderr.
 - **Custom Python interpreter** — `--python /path/to/python` runs tests in a different Python environment (e.g. a uv venv or conda env). The target environment only needs pytest installed; bridle injects its own source via `PYTHONPATH`.
 - **Exit code passthrough** — the harness returns the subprocess exit code so CI can gate on it.
@@ -80,6 +80,16 @@ uv run bridle tests/ --python /path/to/conda/env/bin/python
 ```
 
 The target environment only needs **pytest** installed. bridle automatically injects its own source into `PYTHONPATH` so the subprocess can find the bridle plugin without installing bridle into the target env.
+
+## Multiple Backends
+
+Upload results to more than one backend in a single run by passing a comma-separated list:
+
+```bash
+uv run bridle tests/ --backend buildkite,mslci
+```
+
+Each backend receives the same set of test events. This is backward-compatible — `--backend stub` still works as before.
 
 ## Buildkite Test Analytics
 
@@ -162,7 +172,7 @@ src/bridle/
 ├── _harness.py          # Orchestrator: argparse, subprocess, read results, dispatch
 ├── _console.py          # Rich-formatted output helpers
 └── backends/
-    ├── __init__.py      # Registry + get_backend()
+    ├── __init__.py      # Registry + get_backend() / get_backends()
     ├── _base.py         # Abstract Backend base class
     ├── _buildkite.py    # BuildkiteBackend (Buildkite Test Analytics)
     └── _stub.py         # StubBackend (logs to console)

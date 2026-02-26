@@ -98,6 +98,22 @@ class TestHarnessSubprocess:
         assert "would upload" in result.stderr.lower()
 
 
+class TestMultipleBackends:
+    """Integration tests for comma-separated --backend values."""
+
+    def test_multiple_stub_backends(self, tmp_path) -> None:
+        test_file = tmp_path / "test_one.py"
+        test_file.write_text("def test_ok(): pass\n")
+        result = subprocess.run(
+            [sys.executable, "-m", "bridle", str(test_file), "--backend", "stub,stub"],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        # Both stub backends should print their "would upload" message.
+        assert result.stderr.lower().count("would upload") == 2
+
+
 class TestPythonFlag:
     """Integration tests for --python flag."""
 

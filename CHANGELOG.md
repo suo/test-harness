@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+
+- Support multiple backends via comma-separated `--backend` values (e.g. `--backend buildkite,mslci`)
+
 ## 0.4.0
 
 - Add MSLCI upload backend (`--backend mslci`)

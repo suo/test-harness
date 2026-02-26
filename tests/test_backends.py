@@ -14,6 +14,7 @@ from bridle.backends import (
     MslciBackend,
     StubBackend,
     get_backend,
+    get_backends,
 )
 from bridle.backends._buildkite import (
     _convert_event,
@@ -46,6 +47,29 @@ class TestRegistry:
     def test_unknown_backend_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown backend 'nope'"):
             get_backend("nope")
+
+
+class TestGetBackends:
+    def test_single_name(self) -> None:
+        backends = get_backends("stub")
+        assert len(backends) == 1
+        assert isinstance(backends[0], StubBackend)
+
+    def test_comma_separated(self) -> None:
+        backends = get_backends("stub,buildkite")
+        assert len(backends) == 2
+        assert isinstance(backends[0], StubBackend)
+        assert isinstance(backends[1], BuildkiteBackend)
+
+    def test_unknown_name_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unknown backend 'nope'"):
+            get_backends("stub,nope")
+
+    def test_whitespace_handling(self) -> None:
+        backends = get_backends("stub, buildkite")
+        assert len(backends) == 2
+        assert isinstance(backends[0], StubBackend)
+        assert isinstance(backends[1], BuildkiteBackend)
 
 
 class TestStubBackend:

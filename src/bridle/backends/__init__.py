@@ -23,4 +23,9 @@ def get_backend(name: str) -> Backend:
     return cls()
 
 
-__all__ = ["Backend", "BuildkiteBackend", "MslciBackend", "StubBackend", "get_backend"]
+def get_backends(names: str) -> list[Backend]:
+    """Look up and instantiate backends from a comma-separated string."""
+    return [get_backend(n.strip()) for n in names.split(",")]
+
+
+__all__ = ["Backend", "BuildkiteBackend", "MslciBackend", "StubBackend", "get_backend", "get_backends"]

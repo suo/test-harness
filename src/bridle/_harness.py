@@ -10,7 +10,7 @@ from pathlib import Path
 from bridle._console import print_results
 from bridle._monitor import monitor_subprocess
 from bridle._schema import read_events, resolve_events
-from bridle.backends import get_backend
+from bridle.backends import get_backends
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -21,7 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--backend",
         default="stub",
-        help="Upload backend name (default: stub)",
+        help="Upload backend name(s), comma-separated (default: stub)",
     )
     parser.add_argument(
         "--python",
@@ -60,7 +60,7 @@ def run(argv: list[str] | None = None) -> int:
     parser = build_parser()
     known, pytest_args = parser.parse_known_args(argv)
 
-    backend = get_backend(known.backend)
+    backends = get_backends(known.backend)
 
     # Create a temp file for JSONL results.
     fd, results_path = tempfile.mkstemp(suffix=".jsonl", prefix="bridle_")
@@ -112,9 +112,10 @@ def run(argv: list[str] | None = None) -> int:
         # Display results.
         print_results(resolved)
 
-        # Upload raw events via backend.
+        # Upload raw events via backends.
         if events:
-            backend.upload(events)
+            for backend in backends:
+                backend.upload(events)
 
         return exit_code
     finally:
