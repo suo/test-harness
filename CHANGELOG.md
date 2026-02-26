@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- Lower minimum Python version from 3.13 to 3.12
+- Add Python 3.12 to CI test matrix
+
 ## 0.2.0
 
 - Add `--python` flag to run tests in a different Python interpreter
