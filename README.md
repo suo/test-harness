@@ -7,6 +7,7 @@ A harness for running pytest. It handles the collection and upload of test resul
 - **Crash resilience** — pytest runs in a subprocess; events are flushed to disk after every test. A `TestStarted` event is written before each test runs, followed by a `TestFinished` event on completion. If the subprocess segfaults or OOMs mid-test, `resolve_events()` detects the unmatched `TestStarted` and synthesizes a failed `TestFinished`.
 - **Pluggable backends** — can register one or more backends to upload test results to.
 - **Rich console output** — summary table with outcome counts and duration, plus detailed failure panels, all printed to stderr.
+- **Custom Python interpreter** — `--python /path/to/python` runs tests in a different Python environment (e.g. a uv venv or conda env). The target environment only needs pytest installed; bridle injects its own source via `PYTHONPATH`.
 - **Exit code passthrough** — the harness returns the subprocess exit code so CI can gate on it.
 - **Per-test and total timeouts** — `--test-timeout-sec N` kills the subprocess if any single test exceeds N seconds; `--total-timeout-sec N` kills it if the entire run exceeds N seconds. Timed-out tests appear as normal failures with a timeout-specific message in `longrepr`.
 
@@ -65,6 +66,20 @@ uv run bridle tests/ --test-timeout-sec 30 --total-timeout-sec 120
 ```
 
 When a timeout fires, the subprocess is killed and `TestFinished` events are written for all active tests with a timeout-specific `longrepr`. Downstream code (display, backends) sees them as normal failed tests.
+
+## Custom Python Interpreter
+
+Use `--python` to run tests in a different Python environment while bridle orchestrates from the current one:
+
+```bash
+# Run tests using a uv venv
+uv run bridle tests/ --python .venv/bin/python
+
+# Run tests using a conda environment
+uv run bridle tests/ --python /path/to/conda/env/bin/python
+```
+
+The target environment only needs **pytest** installed. bridle automatically injects its own source into `PYTHONPATH` so the subprocess can find the bridle plugin without installing bridle into the target env.
 
 ## Buildkite Test Analytics
 

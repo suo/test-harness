@@ -98,6 +98,48 @@ class TestHarnessSubprocess:
         assert "would upload" in result.stderr.lower()
 
 
+class TestPythonFlag:
+    """Integration tests for --python flag."""
+
+    def test_python_flag_with_current_interpreter(self, tmp_path) -> None:
+        """Using --python with the current interpreter should work end-to-end."""
+        test_file = tmp_path / "test_example.py"
+        test_file.write_text(
+            textwrap.dedent("""\
+            def test_ok():
+                assert True
+        """)
+        )
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "bridle",
+                str(test_file),
+                "--python", sys.executable,
+                "--backend", "stub",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert "passed" in result.stderr.lower()
+
+    def test_python_flag_invalid_path(self, tmp_path) -> None:
+        """Using --python with a non-existent path should fail."""
+        test_file = tmp_path / "test_example.py"
+        test_file.write_text("def test_ok(): pass\n")
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "bridle",
+                str(test_file),
+                "--python", "/no/such/python",
+                "--backend", "stub",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode != 0
+
+
 class TestHarnessTimeouts:
     """Integration tests for --test-timeout-sec and --total-timeout-sec."""
 

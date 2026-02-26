@@ -24,6 +24,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Upload backend name (default: stub)",
     )
     parser.add_argument(
+        "--python",
+        default=None,
+        help="Path to a Python interpreter to use for the subprocess.",
+    )
+    parser.add_argument(
         "--test-timeout-sec",
         type=float,
         default=None,
@@ -36,6 +41,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Kill the subprocess if the entire run exceeds N seconds.",
     )
     return parser
+
+
+def _bridle_source_root() -> str:
+    """Return the directory containing the bridle package source."""
+    import bridle as _pkg
+
+    return str(Path(_pkg.__file__).resolve().parent.parent)
 
 
 def run(argv: list[str] | None = None) -> int:
@@ -58,8 +70,18 @@ def run(argv: list[str] | None = None) -> int:
     try:
         # Run pytest in subprocess via our _runner module.
         # First arg to _runner is the results file path, rest are pytest args.
+        python_exe = known.python or sys.executable
+        env = None
+        if known.python:
+            env = os.environ.copy()
+            source_root = _bridle_source_root()
+            existing = env.get("PYTHONPATH", "")
+            env["PYTHONPATH"] = (
+                source_root + os.pathsep + existing if existing else source_root
+            )
         proc = subprocess.Popen(
-            [sys.executable, "-m", "bridle._runner", str(results_file), *pytest_args],
+            [python_exe, "-m", "bridle._runner", str(results_file), *pytest_args],
+            env=env,
         )
         exit_code, timeout_result = monitor_subprocess(
             proc,
