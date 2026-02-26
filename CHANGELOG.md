@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- Add MSLCI upload backend (`--backend mslci`)
+- Extract `_detect_run_env()` to shared module for backend reuse
+- Batch event uploads (5,000 per request) to handle large test suites
+
 ## 0.3.0
 
 - Lower minimum Python version from 3.13 to 3.12
