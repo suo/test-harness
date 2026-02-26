@@ -96,3 +96,80 @@ class TestHarnessSubprocess:
         )
         assert result.returncode == 0
         assert "would upload" in result.stderr.lower()
+
+
+class TestHarnessTimeouts:
+    """Integration tests for --test-timeout-sec and --total-timeout-sec."""
+
+    def test_per_test_timeout_kills_slow_test(self, tmp_path) -> None:
+        test_file = tmp_path / "test_slow.py"
+        test_file.write_text(
+            textwrap.dedent("""\
+            import time
+            def test_hangs():
+                time.sleep(60)
+        """)
+        )
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "test_harness",
+                str(test_file),
+                "--test-timeout-sec", "2",
+                "--backend", "stub",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode != 0
+        assert "timeout" in result.stderr.lower()
+
+    def test_total_timeout_kills_run(self, tmp_path) -> None:
+        test_file = tmp_path / "test_many_slow.py"
+        test_file.write_text(
+            textwrap.dedent("""\
+            import time
+            def test_a():
+                time.sleep(60)
+            def test_b():
+                time.sleep(60)
+        """)
+        )
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "test_harness",
+                str(test_file),
+                "--total-timeout-sec", "3",
+                "--backend", "stub",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode != 0
+        assert "timeout" in result.stderr.lower()
+
+    def test_no_timeout_when_tests_are_fast(self, tmp_path) -> None:
+        test_file = tmp_path / "test_fast.py"
+        test_file.write_text(
+            textwrap.dedent("""\
+            def test_quick_a():
+                assert True
+            def test_quick_b():
+                assert 1 + 1 == 2
+        """)
+        )
+        result = subprocess.run(
+            [
+                sys.executable, "-m", "test_harness",
+                str(test_file),
+                "--test-timeout-sec", "30",
+                "--total-timeout-sec", "60",
+                "--backend", "stub",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0
+        assert "passed" in result.stderr.lower()

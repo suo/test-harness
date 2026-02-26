@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from enum import Enum
 from pathlib import Path
@@ -100,3 +101,19 @@ def resolve_events(events: list[TestEvent]) -> list[TestFinished]:
             )
 
     return resolved
+
+
+def append_event(path: Path, event: TestEvent) -> None:
+    """Append a single event as a JSON line to the JSONL file."""
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(event.model_dump()) + "\n")
+
+
+def test_timeout_repr(limit: float, elapsed: float) -> str:
+    """Format longrepr for a per-test timeout kill."""
+    return f"Test killed: exceeded per-test timeout of {limit:.1f}s (ran for {elapsed:.1f}s)"
+
+
+def total_timeout_repr(limit: float, elapsed: float) -> str:
+    """Format longrepr for a total-run timeout kill."""
+    return f"Test killed: total run exceeded timeout of {limit:.1f}s (ran for {elapsed:.1f}s)"

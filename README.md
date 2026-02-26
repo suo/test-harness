@@ -8,6 +8,7 @@ A harness for running pytest. It handles the collection and upload of test resul
 - **Pluggable backends** — can register one or more backends to upload test results to.
 - **Rich console output** — summary table with outcome counts and duration, plus detailed failure panels, all printed to stderr.
 - **Exit code passthrough** — the harness returns the subprocess exit code so CI can gate on it.
+- **Per-test and total timeouts** — `--test-timeout-sec N` kills the subprocess if any single test exceeds N seconds; `--total-timeout-sec N` kills it if the entire run exceeds N seconds. Timed-out tests appear as normal failures with a timeout-specific message in `longrepr`.
 
 ## JSONL Schema
 
@@ -47,6 +48,23 @@ The JSONL file contains a tagged union of two event types, discriminated by the 
 | `wasxfail` | `string \| null`              | xfail reason if the test was marked xfail                        |
 
 `TestEvent = TestStarted | TestFinished` is a discriminated union. Use `resolve_events()` to match pairs — unmatched `TestStarted` events become synthetic failed `TestFinished` entries.
+
+## Timeouts
+
+Kill tests that hang or entire runs that take too long:
+
+```bash
+# Kill any single test that runs longer than 30 seconds
+uv run test-harness tests/ --test-timeout-sec 30
+
+# Kill the entire run if it exceeds 2 minutes
+uv run test-harness tests/ --total-timeout-sec 120
+
+# Both can be combined
+uv run test-harness tests/ --test-timeout-sec 30 --total-timeout-sec 120
+```
+
+When a timeout fires, the subprocess is killed and `TestFinished` events are written for all active tests with a timeout-specific `longrepr`. Downstream code (display, backends) sees them as normal failed tests.
 
 ## Adding a Backend
 
@@ -94,6 +112,7 @@ src/test_harness/
 ├── __init__.py          # main() entrypoint
 ├── __main__.py          # python -m support
 ├── _schema.py           # TestStarted/TestFinished pydantic models + Outcome enum + JSONL ser/de
+├── _monitor.py          # Subprocess monitor with per-test and total timeout enforcement
 ├── _plugin.py           # TestResultPlugin (pytest plugin, flush-per-line)
 ├── _runner.py           # Subprocess entry point
 ├── _harness.py          # Orchestrator: argparse, subprocess, read results, dispatch
