@@ -7,15 +7,15 @@ import sys
 import tempfile
 from pathlib import Path
 
-from test_harness._console import print_results
-from test_harness._monitor import monitor_subprocess
-from test_harness._schema import read_events, resolve_events
-from test_harness.backends import get_backend
+from bridle._console import print_results
+from bridle._monitor import monitor_subprocess
+from bridle._schema import read_events, resolve_events
+from bridle.backends import get_backend
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="test-harness",
+        prog="bridle",
         description="Run pytest in a subprocess and collect structured results.",
     )
     parser.add_argument(
@@ -51,7 +51,7 @@ def run(argv: list[str] | None = None) -> int:
     backend = get_backend(known.backend)
 
     # Create a temp file for JSONL results.
-    fd, results_path = tempfile.mkstemp(suffix=".jsonl", prefix="test_harness_")
+    fd, results_path = tempfile.mkstemp(suffix=".jsonl", prefix="bridle_")
     os.close(fd)
     results_file = Path(results_path)
 
@@ -59,7 +59,7 @@ def run(argv: list[str] | None = None) -> int:
         # Run pytest in subprocess via our _runner module.
         # First arg to _runner is the results file path, rest are pytest args.
         proc = subprocess.Popen(
-            [sys.executable, "-m", "test_harness._runner", str(results_file), *pytest_args],
+            [sys.executable, "-m", "bridle._runner", str(results_file), *pytest_args],
         )
         exit_code, timeout_result = monitor_subprocess(
             proc,

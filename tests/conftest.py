@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from test_harness._schema import Outcome, TestFinished
+from bridle._schema import Outcome, TestFinished
 
 pytest_plugins = ["pytester"]
 

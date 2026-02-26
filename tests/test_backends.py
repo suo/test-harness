@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from test_harness._schema import Outcome, TestEvent, TestFinished, TestStarted
-from test_harness.backends import Backend, BuildkiteBackend, StubBackend, get_backend
-from test_harness.backends._buildkite import (
+from bridle._schema import Outcome, TestEvent, TestFinished, TestStarted
+from bridle.backends import Backend, BuildkiteBackend, StubBackend, get_backend
+from bridle.backends._buildkite import (
     _convert_event,
     _detect_run_env,
     _map_outcome,
@@ -215,7 +215,7 @@ class TestBuildkiteUpload:
         monkeypatch.setenv("BUILDKITE_ANALYTICS_TOKEN", "fake-token")
         backend = BuildkiteBackend()
         with patch(
-            "test_harness.backends._buildkite._post_batch"
+            "bridle.backends._buildkite._post_batch"
         ) as mock_post:
             backend.upload([])
             mock_post.assert_not_called()
@@ -226,7 +226,7 @@ class TestBuildkiteUpload:
         monkeypatch.setenv("BUILDKITE_ANALYTICS_TOKEN", "fake-token")
         backend = BuildkiteBackend()
         with patch(
-            "test_harness.backends._buildkite._post_batch"
+            "bridle.backends._buildkite._post_batch"
         ) as mock_post:
             backend.upload(sample_results)
             mock_post.assert_called_once()
@@ -286,7 +286,7 @@ class TestBuildkiteUpload:
             for i in range(250)
         ]
         with patch(
-            "test_harness.backends._buildkite._post_batch"
+            "bridle.backends._buildkite._post_batch"
         ) as mock_post:
             backend.upload(events)
             assert mock_post.call_count == 3
@@ -307,7 +307,7 @@ class TestBuildkiteUpload:
             ),
         ]
         with patch(
-            "test_harness.backends._buildkite._post_batch"
+            "bridle.backends._buildkite._post_batch"
         ) as mock_post:
             backend.upload(events)
             mock_post.assert_called_once()
@@ -333,7 +333,7 @@ class TestBuildkiteUpload:
             ),
         ]
         with patch(
-            "test_harness.backends._buildkite._post_batch"
+            "bridle.backends._buildkite._post_batch"
         ) as mock_post:
             backend.upload(events)
             assert mock_post.call_args[0][0] == "https://custom.example.com/upload"

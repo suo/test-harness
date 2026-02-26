@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from test_harness._schema import Outcome, TestFinished, read_events, resolve_events
+from bridle._schema import Outcome, TestFinished, read_events, resolve_events
 
 
 @pytest.fixture()
@@ -12,11 +12,11 @@ def harness_pytester(pytester: pytest.Pytester) -> pytest.Pytester:
     pytester.makeconftest(
         f"""
 from pathlib import Path
-from test_harness._plugin import TestResultPlugin
+from bridle._plugin import TestResultPlugin
 
 def pytest_configure(config):
     plugin = TestResultPlugin(Path({str(results_file)!r}))
-    config.pluginmanager.register(plugin, "test_harness_plugin")
+    config.pluginmanager.register(plugin, "bridle_plugin")
 """
     )
     return pytester
@@ -216,7 +216,7 @@ def test_ok():
         )
         harness_pytester.runpytest()
 
-        from test_harness._schema import TestStarted
+        from bridle._schema import TestStarted
         events = read_events(harness_pytester.path / "results.jsonl")
         started = [e for e in events if isinstance(e, TestStarted)]
         finished = [e for e in events if isinstance(e, TestFinished)]

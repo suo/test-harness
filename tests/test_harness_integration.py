@@ -9,7 +9,7 @@ import pytest
 
 
 class TestHarnessSubprocess:
-    """Full subprocess integration tests for the test-harness CLI."""
+    """Full subprocess integration tests for the bridle CLI."""
 
     def test_passing_tests(self, tmp_path) -> None:
         test_file = tmp_path / "test_example.py"
@@ -23,7 +23,7 @@ class TestHarnessSubprocess:
         """)
         )
         result = subprocess.run(
-            [sys.executable, "-m", "test_harness", str(test_file), "--backend", "stub"],
+            [sys.executable, "-m", "bridle", str(test_file), "--backend", "stub"],
             capture_output=True,
             text=True,
         )
@@ -39,7 +39,7 @@ class TestHarnessSubprocess:
         """)
         )
         result = subprocess.run(
-            [sys.executable, "-m", "test_harness", str(test_file), "--backend", "stub"],
+            [sys.executable, "-m", "bridle", str(test_file), "--backend", "stub"],
             capture_output=True,
             text=True,
         )
@@ -64,7 +64,7 @@ class TestHarnessSubprocess:
         """)
         )
         result = subprocess.run(
-            [sys.executable, "-m", "test_harness", str(test_file), "--backend", "stub"],
+            [sys.executable, "-m", "bridle", str(test_file), "--backend", "stub"],
             capture_output=True,
             text=True,
         )
@@ -79,7 +79,7 @@ class TestHarnessSubprocess:
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
         result = subprocess.run(
-            [sys.executable, "-m", "test_harness", str(empty_dir), "--backend", "stub"],
+            [sys.executable, "-m", "bridle", str(empty_dir), "--backend", "stub"],
             capture_output=True,
             text=True,
         )
@@ -90,7 +90,7 @@ class TestHarnessSubprocess:
         test_file = tmp_path / "test_one.py"
         test_file.write_text("def test_ok(): pass\n")
         result = subprocess.run(
-            [sys.executable, "-m", "test_harness", str(test_file), "--backend", "stub"],
+            [sys.executable, "-m", "bridle", str(test_file), "--backend", "stub"],
             capture_output=True,
             text=True,
         )
@@ -112,7 +112,7 @@ class TestHarnessTimeouts:
         )
         result = subprocess.run(
             [
-                sys.executable, "-m", "test_harness",
+                sys.executable, "-m", "bridle",
                 str(test_file),
                 "--test-timeout-sec", "2",
                 "--backend", "stub",
@@ -137,7 +137,7 @@ class TestHarnessTimeouts:
         )
         result = subprocess.run(
             [
-                sys.executable, "-m", "test_harness",
+                sys.executable, "-m", "bridle",
                 str(test_file),
                 "--total-timeout-sec", "3",
                 "--backend", "stub",
@@ -161,7 +161,7 @@ class TestHarnessTimeouts:
         )
         result = subprocess.run(
             [
-                sys.executable, "-m", "test_harness",
+                sys.executable, "-m", "bridle",
                 str(test_file),
                 "--test-timeout-sec", "30",
                 "--total-timeout-sec", "60",

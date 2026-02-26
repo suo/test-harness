@@ -1,4 +1,4 @@
-"""Subprocess entry point: python -m test_harness._runner <results_path> [pytest args...]
+"""Subprocess entry point: python -m bridle._runner <results_path> [pytest args...]
 
 This module is invoked by the harness in a subprocess. The first argument is
 the JSONL results file path; all remaining arguments are forwarded to pytest.
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from test_harness._plugin import TestResultPlugin
+from bridle._plugin import TestResultPlugin
 
 
 def main() -> int:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from test_harness._schema import TestEvent
+from bridle._schema import TestEvent
 
 
 class Backend(ABC):

@@ -6,7 +6,7 @@ from typing import IO
 
 import pytest
 
-from test_harness._schema import Outcome, TestFinished, TestStarted
+from bridle._schema import Outcome, TestFinished, TestStarted
 
 # Map pytest outcome strings to our Outcome enum.
 _OUTCOME_MAP: dict[str, Outcome] = {

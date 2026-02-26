@@ -1,5 +1,5 @@
 [project]
-name = "test-harness"
+name = "bridle"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
-test-harness = "test_harness:main"
+bridle = "bridle:main"
 
 [dependency-groups]
 dev = [

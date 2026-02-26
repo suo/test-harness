@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from rich.console import Console
 
-from test_harness._schema import TestEvent, TestFinished, TestStarted
-from test_harness.backends._base import Backend
+from bridle._schema import TestEvent, TestFinished, TestStarted
+from bridle.backends._base import Backend
 
 
 class StubBackend(Backend):

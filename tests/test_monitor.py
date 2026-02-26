@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from test_harness._monitor import (
+from bridle._monitor import (
     Clock,
     Process,
     TimeoutResult,
     monitor_subprocess,
 )
-from test_harness._schema import (
+from bridle._schema import (
     CRASH_REPR,
     Outcome,
     TestFinished,

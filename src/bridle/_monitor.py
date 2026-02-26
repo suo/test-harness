@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from test_harness._schema import (
+from bridle._schema import (
     Outcome,
     TestFinished,
     TestStarted,

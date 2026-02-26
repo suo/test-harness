@@ -1,4 +1,4 @@
-# test-harness
+# bridle
 
 A harness for running pytest. It handles the collection and upload of test result information in a way that is resilient to crashes/OOMs in the code under test.
 
@@ -55,13 +55,13 @@ Kill tests that hang or entire runs that take too long:
 
 ```bash
 # Kill any single test that runs longer than 30 seconds
-uv run test-harness tests/ --test-timeout-sec 30
+uv run bridle tests/ --test-timeout-sec 30
 
 # Kill the entire run if it exceeds 2 minutes
-uv run test-harness tests/ --total-timeout-sec 120
+uv run bridle tests/ --total-timeout-sec 120
 
 # Both can be combined
-uv run test-harness tests/ --test-timeout-sec 30 --total-timeout-sec 120
+uv run bridle tests/ --test-timeout-sec 30 --total-timeout-sec 120
 ```
 
 When a timeout fires, the subprocess is killed and `TestFinished` events are written for all active tests with a timeout-specific `longrepr`. Downstream code (display, backends) sees them as normal failed tests.
@@ -76,7 +76,7 @@ Set the `BUILDKITE_ANALYTICS_TOKEN` environment variable to your Buildkite Test 
 
 ```bash
 export BUILDKITE_ANALYTICS_TOKEN="your-suite-token"
-uv run test-harness tests/ --backend buildkite
+uv run bridle tests/ --backend buildkite
 ```
 
 ### Environment Variables
@@ -100,8 +100,8 @@ The backend automatically detects CI environment (Buildkite, GitHub Actions, Cir
 Subclass `Backend` and register it in `backends/__init__.py`:
 
 ```python
-from test_harness.backends._base import Backend
-from test_harness._schema import TestEvent
+from bridle.backends._base import Backend
+from bridle._schema import TestEvent
 
 class MyBackend(Backend):
     def name(self) -> str:
@@ -137,7 +137,7 @@ uv run pytest tests/ --snapshot-update
 ## Project Structure
 
 ```
-src/test_harness/
+src/bridle/
 ├── __init__.py          # main() entrypoint
 ├── __main__.py          # python -m support
 ├── _schema.py           # TestStarted/TestFinished pydantic models + Outcome enum + JSONL ser/de

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from syrupy.assertion import SnapshotAssertion
 
-from test_harness._schema import (
+from bridle._schema import (
     CRASH_REPR,
     Outcome,
     TestFinished,

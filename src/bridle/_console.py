@@ -5,7 +5,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from test_harness._schema import Outcome, TestFinished
+from bridle._schema import Outcome, TestFinished
 
 _OUTCOME_STYLES: dict[Outcome, str] = {
     Outcome.PASSED: "green",

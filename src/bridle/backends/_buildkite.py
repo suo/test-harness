@@ -7,8 +7,8 @@ import urllib.request
 import urllib.error
 from uuid import uuid4
 
-from test_harness._schema import Outcome, TestEvent, TestFinished, resolve_events
-from test_harness.backends._base import Backend
+from bridle._schema import Outcome, TestEvent, TestFinished, resolve_events
+from bridle.backends._base import Backend
 
 logger = logging.getLogger(__name__)
 
