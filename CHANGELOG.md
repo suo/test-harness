@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Add `--python` flag to run tests in a different Python interpreter
+- Refactor `_plugin.py` to avoid pydantic dependency in the subprocess (only pytest needed in target env)
+- Bridle source is automatically injected into `PYTHONPATH` when using `--python`
+
 ## 0.1.0
 
 Initial release as `bridle` (renamed from `test-harness`).
