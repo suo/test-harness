@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+- Add `MSLCI_EXCLUDE_FIELDS` env var to drop configurable fields (e.g. `longrepr`, `sections`, `wasxfail`) from MSLCI upload payload, preventing HTTP 413 errors for large test outputs
+
 ## 0.5.0
 
 - Support multiple backends via comma-separated `--backend` values (e.g. `--backend buildkite,mslci`)
