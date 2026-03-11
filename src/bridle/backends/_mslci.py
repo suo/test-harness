@@ -41,9 +41,12 @@ def _make_mslci_run_env(raw: dict) -> dict:
     }
 
 
-def _serialize_event(event: TestFinished) -> dict:
+def _serialize_event(
+    event: TestFinished,
+    exclude: set[str] | None = None,
+) -> dict:
     """Serialize a TestFinished event for the MSLCI upload payload."""
-    data = event.model_dump(exclude={"type"})
+    data = event.model_dump(exclude=exclude or {"type"})
     # Convert location from tuple to string for the server schema.
     data["location"] = _location_to_str(event.location)
     return data
@@ -91,8 +94,13 @@ class MslciBackend(Backend):
         if not resolved:
             return
 
+        exclude: set[str] = {"type"}
+        exclude_env = os.environ.get("MSLCI_EXCLUDE_FIELDS")
+        if exclude_env:
+            exclude |= {f.strip() for f in exclude_env.split(",") if f.strip()}
+
         run_env = _make_mslci_run_env(_detect_run_env())
-        data = [_serialize_event(ev) for ev in resolved]
+        data = [_serialize_event(ev, exclude=exclude) for ev in resolved]
 
         headers: dict[str, str] = {"Content-Type": "application/json"}
         token = os.environ.get("MSLCI_API_TOKEN")

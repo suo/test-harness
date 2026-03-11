@@ -608,3 +608,115 @@ class TestMslciBackend:
             run_env = payload["run_env"]
             assert run_env["commit_sha"] == "deadbeef"
             assert "commit" not in run_env
+
+    def test_default_includes_all_fields(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When MSLCI_EXCLUDE_FIELDS is unset, longrepr/sections/wasxfail are present."""
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        monkeypatch.delenv("MSLCI_EXCLUDE_FIELDS", raising=False)
+        backend = MslciBackend()
+
+        events: list[TestEvent] = [
+            TestFinished(
+                nodeid="tests/test_a.py::test_ok",
+                outcome=Outcome.PASSED,
+                when="call",
+                duration=0.005,
+                start=FIXED_START,
+                stop=FIXED_STOP,
+                longrepr="some repr",
+                sections=[("stdout", "hello")],
+                wasxfail="reason",
+            ),
+        ]
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b""
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            backend.upload(events)
+            req = mock_urlopen.call_args[0][0]
+            payload = json.loads(req.data.decode("utf-8"))
+            ev = payload["events"][0]
+            assert "longrepr" in ev
+            assert "sections" in ev
+            assert "wasxfail" in ev
+
+    def test_exclude_fields_env_var(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """MSLCI_EXCLUDE_FIELDS=longrepr,sections,wasxfail drops those fields."""
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        monkeypatch.setenv("MSLCI_EXCLUDE_FIELDS", "longrepr,sections,wasxfail")
+        backend = MslciBackend()
+
+        events: list[TestEvent] = [
+            TestFinished(
+                nodeid="tests/test_a.py::test_ok",
+                outcome=Outcome.PASSED,
+                when="call",
+                duration=0.005,
+                start=FIXED_START,
+                stop=FIXED_STOP,
+                longrepr="some repr",
+                sections=[("stdout", "hello")],
+                wasxfail="reason",
+            ),
+        ]
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b""
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            backend.upload(events)
+            req = mock_urlopen.call_args[0][0]
+            payload = json.loads(req.data.decode("utf-8"))
+            ev = payload["events"][0]
+            assert "longrepr" not in ev
+            assert "sections" not in ev
+            assert "wasxfail" not in ev
+            # Core fields are still present
+            assert ev["nodeid"] == "tests/test_a.py::test_ok"
+            assert ev["duration"] == 0.005
+            assert "type" not in ev
+
+    def test_exclude_fields_partial(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """MSLCI_EXCLUDE_FIELDS=longrepr excludes only longrepr."""
+        monkeypatch.setenv("MSLCI_API_URL", "https://mslci.example.com/api/v1/uploads")
+        monkeypatch.setenv("MSLCI_EXCLUDE_FIELDS", "longrepr")
+        backend = MslciBackend()
+
+        events: list[TestEvent] = [
+            TestFinished(
+                nodeid="tests/test_a.py::test_ok",
+                outcome=Outcome.PASSED,
+                when="call",
+                duration=0.005,
+                start=FIXED_START,
+                stop=FIXED_STOP,
+                longrepr="some repr",
+                sections=[("stdout", "hello")],
+                wasxfail="reason",
+            ),
+        ]
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b""
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
+            backend.upload(events)
+            req = mock_urlopen.call_args[0][0]
+            payload = json.loads(req.data.decode("utf-8"))
+            ev = payload["events"][0]
+            assert "longrepr" not in ev
+            assert "sections" in ev
+            assert "wasxfail" in ev
